@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from "express";
 import {
   listCameras,
   getSnapshot,
@@ -6,15 +6,19 @@ import {
   getRecordings,
   serveRecording,
   getFrame,
-} from '../controllers/cameraController';
+  receiveEvent,
+  getCameraEvents,
+} from "../controllers/cameraController";
 
 const router = Router();
 
-router.get('/', listCameras);
-router.get('/:id/snapshot', getSnapshot);
-router.get('/:id/stream', getStream);
-router.get('/:id/recordings', getRecordings);
-router.get('/:id/recordings/:filename', serveRecording);
-router.get('/:id/frames', getFrame);
+router.get("/", listCameras);
+router.get("/events", receiveEvent);
+router.get("/:id/snapshot", getSnapshot);
+router.get("/:id/stream", getStream);
+router.get("/:id/recordings", getRecordings);
+router.get("/:id/recordings/:filename", serveRecording);
+router.get("/:id/frames", getFrame);
+router.get("/:id/events", getCameraEvents);
 
 export default router;
