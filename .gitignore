@@ -6,3 +6,4 @@ dist/
 .env
 cameras.json
 .claude/
+.vscode/
