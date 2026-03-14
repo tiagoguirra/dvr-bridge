@@ -1,0 +1,14 @@
+[
+  {
+    "id": "1",
+    "name": "Garagem",
+    "description": "Câmera da garagem com visão do portão",
+    "recordFolder": "cam1"
+  },
+  {
+    "id": "2",
+    "name": "Frente",
+    "description": "Câmera frontal externa",
+    "recordFolder": "cam2"
+  }
+]
