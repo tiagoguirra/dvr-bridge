@@ -60,20 +60,29 @@ export function getRecordingByFilename(cameraId: string, filename: string): Reco
     .get(cameraId, filename) as Recording | undefined;
 }
 
-export function getRecordingAtTime(cameraId: string, targetTimestamp: Date): Recording | undefined {
-  const db = getDb();
-  const target = targetTimestamp.toISOString();
+// Format Date as 'YYYY-MM-DD HH:MM:SS' in local time (SQLite standard, no timezone offset)
+export function toLocalDatetimeString(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    ` ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  );
+}
 
+export function getRecordingAtTime(cameraId: string, target: string): Recording | undefined {
+  const db = getDb();
+
+  // Find the most recent recording that started before (or at) the target time.
+  // Duration check is done in application code to avoid NULL issues.
   return db
     .prepare(
       `SELECT * FROM recordings
        WHERE camera_id = ?
          AND recorded_at <= ?
-         AND DATETIME(recorded_at, '+' || CAST(CAST(duration AS INTEGER) AS TEXT) || ' seconds') >= ?
        ORDER BY recorded_at DESC
        LIMIT 1`
     )
-    .get(cameraId, target, target) as Recording | undefined;
+    .get(cameraId, target) as Recording | undefined;
 }
 
 export function insertRecording(
@@ -88,7 +97,7 @@ export function insertRecording(
   db.prepare(
     `INSERT OR IGNORE INTO recordings (camera_id, filename, filepath, size, duration, recorded_at)
      VALUES (?, ?, ?, ?, ?, ?)`
-  ).run(cameraId, filename, filepath, size, duration, recordedAt?.toISOString() ?? null);
+  ).run(cameraId, filename, filepath, size, duration, recordedAt ? toLocalDatetimeString(recordedAt) : null);
 }
 
 export function deleteRecording(cameraId: string, filename: string): void {
