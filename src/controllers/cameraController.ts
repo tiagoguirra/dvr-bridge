@@ -46,13 +46,13 @@ export function getRecordings(req: Request, res: Response): void {
   }
 
   const { date, page, limit } = req.query;
-  const recordings = listRecordings(camera.id, {
+  const result = listRecordings(camera.id, {
     date: typeof date === 'string' ? date : undefined,
     page: page ? parseInt(page as string, 10) : undefined,
     limit: limit ? parseInt(limit as string, 10) : undefined,
   });
 
-  res.json(recordings);
+  res.json(result);
 }
 
 export function serveRecording(req: Request, res: Response): void {

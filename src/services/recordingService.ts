@@ -8,26 +8,49 @@ export function isVideoFile(filename: string): boolean {
   return VIDEO_EXTENSIONS.has(path.extname(filename).toLowerCase());
 }
 
+export interface PaginatedRecordings {
+  data: Recording[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export function listRecordings(
   cameraId: string,
   options: { date?: string; page?: number; limit?: number } = {}
-): Recording[] {
+): PaginatedRecordings {
   const db = getDb();
-  const { date, page = 1, limit = 50 } = options;
+  const { date, page = 1, limit = 10 } = options;
   const offset = (page - 1) * limit;
 
-  let query = 'SELECT * FROM recordings WHERE camera_id = ?';
-  const params: (string | number)[] = [cameraId];
+  let where = 'WHERE camera_id = ?';
+  const baseParams: (string | number)[] = [cameraId];
 
   if (date) {
-    query += ' AND DATE(recorded_at) = ?';
-    params.push(date);
+    where += ' AND DATE(recorded_at) = ?';
+    baseParams.push(date);
   }
 
-  query += ' ORDER BY recorded_at DESC LIMIT ? OFFSET ?';
-  params.push(limit, offset);
+  const total = (
+    db.prepare(`SELECT COUNT(*) as count FROM recordings ${where}`).get(...baseParams) as { count: number }
+  ).count;
 
-  return db.prepare(query).all(...params) as Recording[];
+  const data = db
+    .prepare(`SELECT * FROM recordings ${where} ORDER BY recorded_at DESC LIMIT ? OFFSET ?`)
+    .all(...baseParams, limit, offset) as Recording[];
+
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 }
 
 export function getRecordingByFilename(cameraId: string, filename: string): Recording | undefined {
