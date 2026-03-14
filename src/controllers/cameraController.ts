@@ -139,6 +139,16 @@ export async function receiveEvent(req: Request, res: Response): Promise<void> {
   res.status(201).json(saved);
 }
 
+export function getAllEvents(req: Request, res: Response): void {
+  const { date, page, limit } = req.query;
+  const result = listEvents({
+    date: typeof date === 'string' ? date : undefined,
+    page: page ? parseInt(page as string, 10) : undefined,
+    limit: limit ? parseInt(limit as string, 10) : undefined,
+  });
+  res.json(result);
+}
+
 export function getCameraEvents(req: Request, res: Response): void {
   const camera = getCameraById(req.params['id'] as string);
   if (!camera) {
@@ -147,7 +157,8 @@ export function getCameraEvents(req: Request, res: Response): void {
   }
 
   const { date, page, limit } = req.query;
-  const result = listEvents(camera.id, {
+  const result = listEvents({
+    cameraId: camera.id,
     date: typeof date === 'string' ? date : undefined,
     page: page ? parseInt(page as string, 10) : undefined,
     limit: limit ? parseInt(limit as string, 10) : undefined,

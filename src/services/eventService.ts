@@ -32,21 +32,27 @@ export function saveEvent(params: {
 }
 
 export function listEvents(
-  cameraId: string,
-  opts: { date?: string; page?: number; limit?: number } = {}
+  opts: { cameraId?: string; date?: string; page?: number; limit?: number } = {}
 ): { data: CameraEvent[]; total: number; page: number; limit: number } {
   const db = getDb();
   const page = opts.page ?? 1;
   const limit = opts.limit ?? 10;
   const offset = (page - 1) * limit;
 
-  let where = 'WHERE camera_id = ?';
-  const args: unknown[] = [cameraId];
+  const conditions: string[] = [];
+  const args: unknown[] = [];
+
+  if (opts.cameraId) {
+    conditions.push('camera_id = ?');
+    args.push(opts.cameraId);
+  }
 
   if (opts.date) {
-    where += ' AND DATE(occurred_at) = ?';
+    conditions.push('DATE(occurred_at) = ?');
     args.push(opts.date);
   }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const total = (db.prepare(`SELECT COUNT(*) as count FROM events ${where}`).get(...args) as { count: number }).count;
   const data = db.prepare(`SELECT * FROM events ${where} ORDER BY occurred_at DESC LIMIT ? OFFSET ?`).all(...args, limit, offset) as CameraEvent[];

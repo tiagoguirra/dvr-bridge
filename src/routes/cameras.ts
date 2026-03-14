@@ -7,13 +7,15 @@ import {
   serveRecording,
   getFrame,
   receiveEvent,
+  getAllEvents,
   getCameraEvents,
 } from "../controllers/cameraController";
 
 const router = Router();
 
 router.get("/", listCameras);
-router.get("/events", receiveEvent);
+router.get("/events", getAllEvents);
+router.post("/events", receiveEvent);
 router.get("/:id/snapshot", getSnapshot);
 router.get("/:id/stream", getStream);
 router.get("/:id/recordings", getRecordings);
