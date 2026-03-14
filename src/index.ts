@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import './config/ffmpeg';
 import express from 'express';
 import { getDb } from './database/db';
 import { getCameras } from './config/cameras';
