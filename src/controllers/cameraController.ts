@@ -6,7 +6,7 @@ import { getCameras, getCameraById } from '../config/cameras';
 import { proxySnapshot, proxyStream } from '../services/proxyService';
 import { listRecordings, getRecordingByFilename } from '../services/recordingService';
 import { extractFrame } from '../services/frameService';
-import { analyzeImage } from '../services/aiService';
+import { analyzeImage, callReplicate as analyzeImageDirect } from '../services/aiService';
 import { saveEvent, listEvents } from '../services/eventService';
 
 dotenv.config();
@@ -190,7 +190,7 @@ export async function analyzeCamera(req: Request, res: Response): Promise<void> 
   }
 
   try {
-    const result = await analyzeImage(imageBuffer, camera.description ?? '', query);
+    const result = await analyzeImageDirect(imageBuffer, camera.description ?? '', query);
     res.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to analyze image';
