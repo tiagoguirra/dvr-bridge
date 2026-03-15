@@ -5,8 +5,9 @@ export interface CameraEvent {
   camera_id: string;
   event_type: string;
   occurred_at: string;
+  filename: string | null;
   description: string | null;
-  security_risk: boolean;
+  security_risk: boolean | null;
   created_at: string;
 }
 
@@ -14,13 +15,14 @@ export function saveEvent(params: {
   camera_id: string;
   event_type: string;
   occurred_at: string;
+  filename: string | null;
   description: string | null;
   security_risk: boolean | null;
 }): CameraEvent {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO events (camera_id, event_type, occurred_at, description, security_risk)
-    VALUES (@camera_id, @event_type, @occurred_at, @description, @security_risk)
+    INSERT INTO events (camera_id, event_type, occurred_at, filename, description, security_risk)
+    VALUES (@camera_id, @event_type, @occurred_at, @filename, @description, @security_risk)
   `);
 
   const result = stmt.run({

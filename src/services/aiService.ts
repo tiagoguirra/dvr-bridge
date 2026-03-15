@@ -37,11 +37,11 @@ export async function analyzeImage(
           simple_schema: ["description", "security_risk"],
         },
       },
-    )) as { json_output: { description: string; security_risk: boolean } };
+    )) as { json_output: { description: string; security_risk: string } };
 
     return {
       description: output.json_output.description,
-      security_risk: Boolean(output.json_output.security_risk),
+      security_risk: output.json_output.security_risk == "true",
     };
   } catch (error) {
     console.error("Error analyzing image:", error);

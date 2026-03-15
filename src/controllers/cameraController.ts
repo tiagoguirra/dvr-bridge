@@ -1,17 +1,11 @@
 import { Request, Response } from 'express';
 import path from 'path';
-import axios from 'axios';
-import dotenv from 'dotenv';
 import { getCameras, getCameraById } from '../config/cameras';
 import { proxySnapshot, proxyStream } from '../services/proxyService';
 import { listRecordings, getRecordingByFilename } from '../services/recordingService';
 import { extractFrame } from '../services/frameService';
 import { analyzeImage } from '../services/aiService';
 import { saveEvent, listEvents } from '../services/eventService';
-
-dotenv.config();
-
-const DVR_BASE_URL = process.env.DVR_BASE_URL || 'http://192.168.68.129:8090';
 
 export function listCameras(_req: Request, res: Response): void {
   const cameras = getCameras().map(({ id, name, description }) => ({ id, name, description }));
@@ -88,55 +82,57 @@ export function serveRecording(req: Request, res: Response): void {
 }
 
 export async function receiveEvent(req: Request, res: Response): Promise<void> {
-  const { oid, event } = req.query;
+  const { oid, event, base64, filename } = req.body;
 
   if (typeof oid !== 'string' || !oid) {
-    res.status(400).json({ error: 'Query param "oid" is required' });
+    res.status(400).json({ error: 'Body param "oid" is required' });
     return;
   }
   if (typeof event !== 'string' || !event) {
-    res.status(400).json({ error: 'Query param "event" is required' });
+    res.status(400).json({ error: 'Body param "event" is required' });
     return;
   }
 
   const camera = getCameraById(oid);
   if (!camera) {
+    console.warn(`[event] Camera not found: oid=${oid}`);
     res.status(404).json({ error: 'Camera not found' });
     return;
   }
 
   const occurredAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  console.log(`[event] Received event="${event}" oid=${oid} camera="${camera.name}" at=${occurredAt} hasImage=${typeof base64 === 'string' && base64.length > 0}`);
 
-  let imageBuffer: Buffer | null = null;
-  try {
-    const response = await axios.get(`${DVR_BASE_URL}/grab.jpg?oid=${oid}`, {
-      responseType: 'arraybuffer',
-      timeout: 10000,
+  res.status(202).json({ message: 'Event received' });
+
+  const imageBuffer = typeof base64 === 'string' && base64
+    ? Buffer.from(base64, 'base64')
+    : Buffer.alloc(0);
+
+  (async () => {
+    let description: string | null = null;
+    let security_risk: boolean | null = null;
+    try {
+      console.log(`[event] Sending image to AI oid=${oid}`);
+      const aiResult = await analyzeImage(imageBuffer, camera.description ?? '');
+      description = aiResult.description;
+      security_risk = aiResult.security_risk;
+      console.log(`[event] AI result oid=${oid} security_risk=${security_risk}`);
+    } catch (err) {
+      console.warn(`[event] AI unavailable, saving event without analysis — ${err instanceof Error ? err.message : err}`);
+    }
+
+    const saved = saveEvent({
+      camera_id: oid,
+      event_type: event,
+      occurred_at: occurredAt,
+      filename: typeof filename === 'string' && filename ? filename : null,
+      description,
+      security_risk,
     });
-    imageBuffer = Buffer.from(response.data);
-  } catch {
-    // proceed without image if snapshot fails
-  }
 
-  let description: string | null = null;
-  let security_risk: boolean | null = null;
-  try {
-    const aiResult = await analyzeImage(imageBuffer ?? Buffer.alloc(0), camera.description ?? '');
-    description = aiResult.description;
-    security_risk = aiResult.security_risk;
-  } catch {
-    // AI offline — event is saved with null analysis
-  }
-
-  const saved = saveEvent({
-    camera_id: oid,
-    event_type: event,
-    occurred_at: occurredAt,
-    description,
-    security_risk,
-  });
-
-  res.status(201).json(saved);
+    console.log(`[event] Saved id=${saved.id} oid=${oid} event="${event}"`);
+  })().catch((err) => console.error(`[event] Unexpected error oid=${oid} — ${err instanceof Error ? err.message : err}`));
 }
 
 export function getAllEvents(req: Request, res: Response): void {
