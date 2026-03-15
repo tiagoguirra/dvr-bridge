@@ -1,11 +1,16 @@
 import { Request, Response } from 'express';
 import path from 'path';
+import axios from 'axios';
+import dotenv from 'dotenv';
 import { getCameras, getCameraById } from '../config/cameras';
 import { proxySnapshot, proxyStream } from '../services/proxyService';
 import { listRecordings, getRecordingByFilename } from '../services/recordingService';
 import { extractFrame } from '../services/frameService';
 import { analyzeImage } from '../services/aiService';
 import { saveEvent, listEvents } from '../services/eventService';
+
+dotenv.config();
+const DVR_BASE_URL = process.env.DVR_BASE_URL || 'http://192.168.68.129:8090';
 
 export function listCameras(_req: Request, res: Response): void {
   const cameras = getCameras().map(({ id, name, description }) => ({ id, name, description }));
@@ -161,6 +166,36 @@ export function getCameraEvents(req: Request, res: Response): void {
   });
 
   res.json(result);
+}
+
+export async function analyzeCamera(req: Request, res: Response): Promise<void> {
+  const camera = getCameraById(req.params['id'] as string);
+  if (!camera) {
+    res.status(404).json({ error: 'Camera not found' });
+    return;
+  }
+
+  const query = typeof req.query['query'] === 'string' ? req.query['query'] : undefined;
+
+  let imageBuffer: Buffer;
+  try {
+    const response = await axios.get(`${DVR_BASE_URL}/grab.jpg?oid=${camera.id}`, {
+      responseType: 'arraybuffer',
+      timeout: 10000,
+    });
+    imageBuffer = Buffer.from(response.data);
+  } catch {
+    res.status(502).json({ error: 'Failed to fetch snapshot from DVR' });
+    return;
+  }
+
+  try {
+    const result = await analyzeImage(imageBuffer, camera.description ?? '', query);
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to analyze image';
+    res.status(503).json({ error: message });
+  }
 }
 
 export async function getFrame(req: Request, res: Response): Promise<void> {

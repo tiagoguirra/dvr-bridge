@@ -16,17 +16,20 @@ const replicate = new Replicate({
 export async function analyzeImage(
   imageBuffer: Buffer,
   cameraDescription: string,
+  query?: string,
 ): Promise<AiAnalysisResult> {
   const tmpFile = path.join(os.tmpdir(), `dvr-event-${Date.now()}.jpg`);
   fs.writeFileSync(tmpFile, imageBuffer);
 
   try {
     const image = new Blob([fs.readFileSync(tmpFile)], { type: "image/jpeg" });
-    const prompt = `
-    Analise a imagem da camera de segurança da residência. ${cameraDescription}
+    const prompt = query
+      ? `Camera de segurança da residência. ${cameraDescription}
+        Analise a imagem e forneça uma resposta concisa.
+        Questão: ${query}`
+      : `Analise a imagem da camera de segurança da residência. ${cameraDescription}
     Retorne uma descrição breve do que acontece na imagem.
-    Marque security_risk=true se identificar atividade suspeita com risco a segurança da residência.
-    `;
+    Marque security_risk=true se identificar atividade suspeita com risco a segurança da residência.`;
 
     const output = (await replicate.run(
       process.env.REPLICATE_MODEL as `${string}/${string}`,

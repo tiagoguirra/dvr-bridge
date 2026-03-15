@@ -9,6 +9,7 @@ import {
   receiveEvent,
   getAllEvents,
   getCameraEvents,
+  analyzeCamera,
 } from "../controllers/cameraController";
 
 const router = Router();
@@ -22,5 +23,6 @@ router.get("/:id/recordings", getRecordings);
 router.get("/:id/recordings/:filename", serveRecording);
 router.get("/:id/frames", getFrame);
 router.get("/:id/events", getCameraEvents);
+router.get("/:id/analyze", analyzeCamera);
 
 export default router;
