@@ -3,6 +3,7 @@ export interface Camera {
   name: string;
   description?: string;
   recordFolder: string;
+  aiAnalysis?: boolean;
 }
 
 export interface Recording {

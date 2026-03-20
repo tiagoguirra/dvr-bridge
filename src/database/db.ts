@@ -27,7 +27,7 @@ function migrate(db: Database.Database): void {
       size        INTEGER,
       duration    REAL,
       recorded_at DATETIME,
-      created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at  DATETIME DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
       UNIQUE(camera_id, filename)
     );
 
@@ -41,8 +41,8 @@ function migrate(db: Database.Database): void {
       occurred_at   DATETIME NOT NULL,
       filename      TEXT,
       description   TEXT,
-      security_risk INTEGER,
-      created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+      should_notify INTEGER,
+      created_at    DATETIME DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     );
 
     CREATE INDEX IF NOT EXISTS idx_events_camera_id ON events(camera_id);

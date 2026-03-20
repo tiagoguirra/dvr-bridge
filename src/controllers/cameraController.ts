@@ -8,9 +8,11 @@ import { listRecordings, getRecordingByFilename } from '../services/recordingSer
 import { extractFrame } from '../services/frameService';
 import { analyzeImage, callReplicate as analyzeImageDirect } from '../services/aiService';
 import { saveEvent, listEvents } from '../services/eventService';
+import { callOpenClawHook } from '../services/openclawService'
 
 dotenv.config();
-const DVR_BASE_URL = process.env.DVR_BASE_URL || 'http://192.168.68.129:8090';
+const DVR_BASE_URL = process.env.DVR_BASE_URL || 'http://localhost:8090';
+
 
 export function listCameras(_req: Request, res: Response): void {
   const cameras = getCameras().map(({ id, name, description }) => ({ id, name, description }));
@@ -105,7 +107,7 @@ export async function receiveEvent(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const occurredAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const occurredAt = new Date().toISOString();
   console.log(`[event] Received event="${event}" oid=${oid} camera="${camera.name}" at=${occurredAt} hasImage=${typeof base64 === 'string' && base64.length > 0}`);
 
   res.status(202).json({ message: 'Event received' });
@@ -116,15 +118,27 @@ export async function receiveEvent(req: Request, res: Response): Promise<void> {
 
   (async () => {
     let description: string | null = null;
-    let security_risk: boolean | null = null;
-    try {
-      console.log(`[event] Sending image to AI oid=${oid}`);
-      const aiResult = await analyzeImage(imageBuffer, camera.description ?? '');
-      description = aiResult.description;
-      security_risk = aiResult.security_risk;
-      console.log(`[event] AI result oid=${oid} security_risk=${security_risk}`);
-    } catch (err) {
-      console.warn(`[event] AI unavailable, saving event without analysis — ${err instanceof Error ? err.message : err}`);
+    let should_notify: boolean | null = null;
+    if (camera.aiAnalysis !== false) {
+      try {
+        console.log(`[event] Sending image to AI oid=${oid}`);
+        const aiResult = await analyzeImage(imageBuffer, camera.description ?? '');
+        description = aiResult.description;
+        should_notify = aiResult.should_notify;
+        console.log(`[event] AI result oid=${oid} should_notify=${should_notify}`);
+      } catch (err) {
+        console.warn(`[event] AI unavailable, saving event without analysis — ${err instanceof Error ? err.message : err}`);
+      }
+
+      if (should_notify) {
+        try {
+          await callOpenClawHook(camera, description as string);
+        } catch (error) {
+          console.error(`[event] Failed to call OpenClaw hook: ${error}`);
+        }
+      }
+    } else {
+      console.log(`[event] AI analysis disabled for oid=${oid}, skipping`);
     }
 
     const saved = saveEvent({
@@ -133,7 +147,7 @@ export async function receiveEvent(req: Request, res: Response): Promise<void> {
       occurred_at: occurredAt,
       filename: typeof filename === 'string' && filename ? filename : null,
       description,
-      security_risk,
+      should_notify,
     });
 
     console.log(`[event] Saved id=${saved.id} oid=${oid} event="${event}"`);

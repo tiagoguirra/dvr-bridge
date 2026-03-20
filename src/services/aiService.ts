@@ -5,7 +5,7 @@ import Replicate from "replicate";
 
 export interface AiAnalysisResult {
   description: string;
-  security_risk: boolean;
+  should_notify: boolean;
 }
 
 interface QueueItem {
@@ -44,7 +44,7 @@ export async function callReplicate(
         Questão: ${query}`
       : `Analise a imagem da camera de segurança da residência. ${cameraDescription}
     Retorne uma descrição breve do que acontece na imagem.
-    Marque security_risk=true se identificar atividade suspeita com risco a segurança da residência.`;
+    Marque should_notify=true se identificar atividade suspeita que merece ser avisado ao proprietário.`;
 
     const output = (await replicate.run(
       process.env.REPLICATE_MODEL as `${string}/${string}`,
@@ -52,14 +52,14 @@ export async function callReplicate(
         input: {
           image_input: [image],
           prompt: prompt,
-          simple_schema: ["description", "security_risk"],
+          simple_schema: ["description", "should_notify"],
         },
       },
-    )) as { json_output: { description: string; security_risk: string } };
+    )) as { json_output: { description: string; should_notify: string } };
 
     return {
       description: output.json_output.description,
-      security_risk: output.json_output.security_risk === "true",
+      should_notify: output.json_output.should_notify === "true",
     };
   } finally {
     fs.unlinkSync(tmpFile);

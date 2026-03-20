@@ -1,6 +1,15 @@
 import path from 'path';
 import { getDb } from '../database/db';
 import { Recording } from '../types/camera';
+import { toLocalISO } from '../utils/date';
+
+function formatRecordingDates(r: Recording): Recording {
+  return {
+    ...r,
+    recorded_at: toLocalISO(r.recorded_at),
+    created_at: toLocalISO(r.created_at) ?? r.created_at,
+  };
+}
 
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.avi', '.mkv', '.mov', '.ts', '.flv', '.wmv']);
 
@@ -38,9 +47,9 @@ export function listRecordings(
     db.prepare(`SELECT COUNT(*) as count FROM recordings ${where}`).get(...baseParams) as { count: number }
   ).count;
 
-  const data = db
+  const data = (db
     .prepare(`SELECT * FROM recordings ${where} ORDER BY recorded_at DESC LIMIT ? OFFSET ?`)
-    .all(...baseParams, limit, offset) as Recording[];
+    .all(...baseParams, limit, offset) as Recording[]).map(formatRecordingDates);
 
   return {
     data,

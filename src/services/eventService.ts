@@ -1,4 +1,13 @@
 import { getDb } from '../database/db';
+import { toLocalISO } from '../utils/date';
+
+function formatEventDates(event: CameraEvent): CameraEvent {
+  return {
+    ...event,
+    occurred_at: toLocalISO(event.occurred_at) ?? event.occurred_at,
+    created_at: toLocalISO(event.created_at) ?? event.created_at,
+  };
+}
 
 export interface CameraEvent {
   id: number;
@@ -7,7 +16,7 @@ export interface CameraEvent {
   occurred_at: string;
   filename: string | null;
   description: string | null;
-  security_risk: boolean | null;
+  should_notify: boolean | null;
   created_at: string;
 }
 
@@ -17,17 +26,17 @@ export function saveEvent(params: {
   occurred_at: string;
   filename: string | null;
   description: string | null;
-  security_risk: boolean | null;
+  should_notify: boolean | null;
 }): CameraEvent {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO events (camera_id, event_type, occurred_at, filename, description, security_risk)
-    VALUES (@camera_id, @event_type, @occurred_at, @filename, @description, @security_risk)
+    INSERT INTO events (camera_id, event_type, occurred_at, filename, description, should_notify)
+    VALUES (@camera_id, @event_type, @occurred_at, @filename, @description, @should_notify)
   `);
 
   const result = stmt.run({
     ...params,
-    security_risk: params.security_risk == null ? null : params.security_risk ? 1 : 0,
+    should_notify: params.should_notify == null ? null : params.should_notify ? 1 : 0,
   });
 
   return db.prepare('SELECT * FROM events WHERE id = ?').get(result.lastInsertRowid) as CameraEvent;
@@ -57,7 +66,7 @@ export function listEvents(
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const total = (db.prepare(`SELECT COUNT(*) as count FROM events ${where}`).get(...args) as { count: number }).count;
-  const data = db.prepare(`SELECT * FROM events ${where} ORDER BY occurred_at DESC LIMIT ? OFFSET ?`).all(...args, limit, offset) as CameraEvent[];
+  const data = (db.prepare(`SELECT * FROM events ${where} ORDER BY occurred_at DESC LIMIT ? OFFSET ?`).all(...args, limit, offset) as CameraEvent[]).map(formatEventDates);
 
   return { data, total, page, limit };
 }
